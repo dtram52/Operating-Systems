@@ -1,0 +1,300 @@
+#!/bin/bash
+# trap statement for interruption, hungup, and termination, this displays 
+trap "rm -f temp*; echo 'ERROR SINGAL CAUGHT, exiting'; exit 1" INT HUP TERM
+
+#tried out dims and tranpose but it would be easier to test if we start with validating input
+#First, we will start with the hint to check whether the input is stdin or file
+#Second, we will give out message when user try to run without the correct arguments
+#there are two cases here: Case 1. dims tranpose mean and Case 2. add and multiply
+#In our matrix function we will call whether our function is in 1. or 2. to determine the number of arguments as well as looping through the arguments to check readability
+
+inputValidation(){
+
+	caseArg=$(( $1 + 1 )) # Depending on which case it belongs, there will be either 2 (case 1) or 3 (case 2) arguments allowed
+	if  [ $# -eq 1 ] #check to see if input is from stdin or file (apply hint from assignment)
+	then
+		cat > input$$
+	elif [ $# -ne $caseArg ]
+	then 	echo "ERROR: Incorrect Number of Input args.">&2
+		exit 1
+	else #check if all the  input files are readable looping through them
+		for i in "${@:2}"
+		do
+			if [ ! -r $i ]
+			then echo "ERROR: YOUR FILE IS UNREADABLE">&2
+			exit 1
+			fi 
+		done
+		cat $2 > input$$
+	fi
+	tempInputMatrix="input$$"	#declare var to store matrix
+
+}
+
+#Working on seperate the above nested loops  but figure its ok for now. Going to work on seperate colcount and rowcount intead as I realize how repetitive that one gets
+#if [!-z $2] #if it's not a string we will pass it as a file
+#then
+#	if [!-r "$2"]  #if file is unreadable 
+#	then echo "File unreadable!">&2
+#exit 1
+#fi
+
+sumLine() {
+	sum=0
+	for i in $1
+	do
+		sum=$(($sum + $i))
+	done
+	echo -n "$sum"
+}
+
+#colcount rowcount (very necessary after you get to add and repeting them for all the functions prior to add)
+
+#referenced and used this guide://www.geeksforgeeks.org/cut-command-linux-examples/
+ 
+countCol() {
+head -n 1 $1 | wc -w
+}
+
+countRow(){
+cat $1 | wc -l
+}
+
+#dims validate input and then count col and row I did this before I created the helped countCol() and countRow so just going to leave this as is
+dims(){
+inputValidation 1 "$@"
+#col counting using the width of  first line (using wc instead of looping.
+	#colcount=$(head -n 1 $1 | wc -w) 
+	tempDimsMatrix=$tempInputMatrix
+	colcount=$(countCol "$tempDimsMatrix") 
+#row counting (used a loop originally) and then see that wc works great. 
+	#rowcount=$(cat $1 | wc -l)
+	rowcount=$(countRow "$tempDimsMatrix")
+	echo "$rowcount $colcount"
+	rm -f "$tempDimsMatrix"
+}
+transpose(){
+inputValidation 1 "$@"
+
+#colcount=$(head-n 1 $1 | wc -w)
+#rowcount=$(cat $1 |wc -l)
+
+
+tempTransMatrix=$tempInputMatrix
+colcount=$(countCol "$tempTransMatrix")
+
+for ((i=1; i<= $colcount;i++))
+do
+	#as mentioned learned more about cut in the geeksforgreeks link to learn cut -c where we can remove the last tab.
+	cut -f $i $tempTransMatrix | tr '\n' '\t' | rev | cut -c 2-| rev
+#do it using another way
+#	col=$(cut -f $i "$tempTransMatrix")
+#	echo $col |tr ' ' '\t' 
+done
+
+rm -f "$tempTransMatrix"
+
+}
+#use the similar method of tranposing to apply it to mean, we need two loop to divide the sum by the number of rows.
+mean() {
+inputValidation 1 "$@"
+tempMeanMatrix=$tempInputMatrix
+colcount=$(countCol "$tempMeanMatrix")
+rowcount=$(countRow "$tempMeanMatrix")
+
+
+#use two loops to 
+	for ((i=1; i <= $colcount; i++))
+	do  
+		col=$(cut -f $i $1) #similar to doing trans we cut each row
+		sum=0
+		for j in $col		#sum the row up and divide by the num of row i.e rowcount
+			do
+				sum=$(( $sum+$j ))
+	#echo "$sum"	
+		done
+				mean=$(( ($sum+($rowcount/2)*(($sum>0)*2-1))/$rowcount ))   #referenced from hint for rounding 	
+				tempMeanMatrix2="$tempMeanMatrix2  $mean"
+		done
+		#echo "$mean" 
+
+#	cat  tempMeanMatrix2 | tr '\n' '\t' | rev | cut -c 2- | rev
+echo $tempMeanMatrix2 | tr ' ' '\t'
+
+#rm -f "$mean"
+rm -f "$tempMeanMatrix"
+} 
+
+
+
+add() {
+inputValidation 2 "$@"
+	#cat $1 > tmpM1
+  	#cat $2 > tmpM2
+  col1=$(countCol $1)
+  row1=$(countRow $1)
+  col2=$(countCol $2)
+  row2=$(countRow $2)
+#test the dimension  of the two matrices
+  if [[ $col1 -ne $col2 ]] || [[ $row1 -ne $row2 ]]
+  then
+     echo "ERROR: Matrix dimensions are off" >&2
+     exit 1
+  fi
+
+  for ((i=1;i <= $row1;i++))
+  do
+    tempAdd=0
+    for ((j=1;j <= $col1;j++))
+    do
+      ele1=$( cat $1 | head -n $i | tail -n 1 | cut -f $j )
+      ele2=$( cat $2 | head -n $i | tail -n 1 | cut -f $j )
+      echo $(( $ele1+$ele2 )) >> tempAdd
+    done
+    cat tempAdd | tr '\n' '\t' | rev | cut -c 2- | rev
+    rm -rf tempAdd
+  done
+  
+  #rm -rf tmpM1 tmpM2 
+
+
+
+}
+
+#I start out with three loops m n p to multiply MxN with NP, the function was passed for a couple times but it takes forever and got the hung message so I start again with array.
+#herestring is a good way to pipe input to a while loop and preserver varible
+#https://stackoverflow.com/questions/19570413/how-to-pipe-input-to-a-bash-while-loop-and-preserve-variables-after-loop-ends
+
+#https://stackoverflow.com/questions/20294918/extract-file-contents-into-array-using-bash
+#alot of the comments have been buried with the three loops in the end so comments are shorter here
+multiply() {
+
+inputValidation 2 "$@"
+#tempProdM="tempProdM$$"
+  col1=$(countCol $1)
+  row1=$(countRow $1)
+  col2=$(countCol $2)
+  row2=$(countRow $2)
+
+
+	# check compatibility MxN NxP so N has to be the same
+	if [[ $col1 != $row2 ]]
+	 then
+		echo  "ERROR: Matrix cannot be multiplied due to the mismatch of column and row count" >&2
+		#rm -f "$tempProdM"
+		exit 1
+	fi	
+	transM2=$(transpose $2) #tranpose the matrix on the right (m2) so we could read line (row) easier for multiplication
+	while read myline1
+	do 
+		myline1=(${myline1[@]})
+		tempRowProd="" #empty to hold row product after summation
+			while read myline2
+			do
+				myline2=(${myline2[@]})
+				tempDotProd="" #hold the dot product immediately after multiplied before summation
+				for ((i = 0; i < col1; i++)) 
+		 		do
+					elem1=${myline1[$i]}
+					elem2=${myline2[$i]}	
+					product=$(( elem1 * elem2 ))
+					tempDotProd="$tempDotProd $product" 
+					
+				done
+		sum=$(sumLine "$tempDotProd")
+			
+		
+		tempRowProd="$tempRowProd $sum"
+			
+			done <<<"$transM2" #referenced link to here  string, although we can pipe into with other ways in the link, this method saves process according to that answer/
+echo $tempRowProd | tr ' ' '\t'
+done<$1
+#	 echo $sum | tr "\n" "\t" >> $tempProdM #dev/el #currline=$(cat $resultsFile)
+	 #stupid=${currline%?}
+	 #echo "$stupid" > $resultsFile
+#	 sum=0 #reset value of sum
+#      done < $transM2
+#      currline=$(cat $tempProdM)
+#      tempO=${currline%?}
+#      echo "$tempO" > $tempProdM
+#      #echo "" >> $resultsFile #creates new row in matrix by adding new line
+#   done < $1
+#   cat $tempProdM
+#
+#rm -rf $tempProdM 
+		
+#
+#	sum-=$
+#	#we will need matrix MxN and NxP to get MxP so we will work on looping through M and P and lastly N 
+#	m=0	# rows of m1
+#	p=0	# cols of m2
+#	n=0	# cols of m2 =  rows of m1
+#
+#	# calculate the dot product and push to a file
+#	# looping through each row in m1
+#	while [[ $m -lt $row1 ]]
+#	do
+#		p=0
+#		# looping through each col in m2
+#		while [[ $p -lt $col2 ]]
+#		do
+#			# initiate a matrix product to sum the initialProducts
+#			sum=0
+#			n=0
+#			# looping through the n
+#			while [[ $n -lt $col1 ]]
+#			do
+#				# MN x NP	
+#				tempP1=$(head -$(( $m + 1 )) $1 | tail -1 | cut -f$(( $n + 1 )))
+#				tempP2=$(head -$(( $n + 1 )) $2 | tail -1 | cut -f$(( $p + 1 )))
+#				
+#				iProduct=$(($tempP1 * $tempP2))
+#					
+#				# add the resulting value together to get the mProduct 
+#				sum=$(expr $sum + $iProduct)
+#
+#				# increment k
+#				n=$(( n++ ))
+#			done
+#
+#			# append the dot product to the output file
+#			echo -en "$sum" >> $tempProdM
+#			
+#			# increment j
+#			p=$(( p++ ))
+#
+#			# append \t to the output file
+#			if [[ $p -ne $col2 ]]; then 
+#				echo -en "\t" >> $tempProdM
+#		fi
+#	done
+#
+#		# increment i
+#		m=$(( m++ ))
+#
+#		# append \n to a file
+#		echo -en "\n" >> $tempProdM
+#		
+#	done
+#	cat $tempProdM
+#fi
+#rm -f $tempProdM
+
+
+}
+
+#referenced from lecture 
+
+if [ $1 != "dims" ] \
+&& [ $1 != "transpose" ] \
+&& [ $1 != "mean" ] \
+&& [ $1 != "add" ] \
+&& [ $1 != "multiply" ]
+then
+	echo "ERROR: $1 is not a matrix function" >&2
+	exit 1
+
+# otherwise call function with remaining arguments
+else
+	$1 "${@:2}"
+fi
