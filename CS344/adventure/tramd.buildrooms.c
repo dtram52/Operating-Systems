@@ -43,7 +43,7 @@ struct Room* connection[MAXCON];
 }Room;
 
 const char*  rType[3]= {"START_ROOM", "MID_ROOM", "END_ROOM"};
-const char* roomNames[NUM_ROOMNAME] = {"Facebook", "Amazon", "Apple", "Netflix", "Google", "Square", "Uber", "Stripe", "Twitter", "Tesla"};
+const char* roomNames[NUM_ROOMNAME] = {"Facebook", "Amazon", "Apple", "Netflix", "Google", "Microsoft", "Linkedin", "Stripe", "Twitter", "Tesla"};
 Room* roomArr[ROOMPLAY];
 
 /*****************
